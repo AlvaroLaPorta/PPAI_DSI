@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CU 28 - Registrar Recepción de Bolsín | PPAI DSI 2026</title>
+    <style>
+        :root {
+            --primary: #1e3a8a;
+            --primary-light: #eff6ff;
+            --accent: #0284c7;
+            --success: #15803d;
+            --success-bg: #dcfce7;
+            --warning: #b45309;
+            --bg: #f8fafc;
+            --card: #ffffff;
+            --border: #cbd5e1;
+            --text: #0f172a;
+        }
+        * { box-sizing: border-box; font-family: 'Segoe UI', system-ui, sans-serif; }
+        body { margin: 0; background: var(--bg); color: var(--text); }
+        header {
+            background: var(--primary); color: white; padding: 1rem 2rem;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        header h1 { margin: 0; font-size: 1.25rem; }
+        header span { font-size: 0.85rem; opacity: 0.9; }
+        .container { max-width: 1050px; margin: 1.5rem auto; padding: 0 1rem; }
+        .card {
+            background: var(--card); border: 1px solid var(--border);
+            border-radius: 8px; padding: 1.25rem; margin-bottom: 1.25rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        .card h2 { margin-top: 0; font-size: 1.1rem; color: var(--primary); border-bottom: 1px solid #e2e8f0; padding-bottom: 0.5rem; }
+        .badge {
+            display: inline-block; padding: 0.25rem 0.65rem; border-radius: 999px;
+            font-size: 0.8rem; font-weight: 600; background: var(--primary-light); color: var(--primary);
+        }
+        .badge-success { background: var(--success-bg); color: var(--success); }
+        table { width: 100%; border-collapse: collapse; margin-top: 0.75rem; font-size: 0.92rem; }
+        th, td { border: 1px solid #e2e8f0; padding: 0.65rem; text-align: left; }
+        th { background: #f1f5f9; font-weight: 600; }
+        tr:hover { background: #f8fafc; }
+        button {
+            background: var(--accent); color: white; border: none; padding: 0.55rem 1rem;
+            border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 0.9rem;
+        }
+        button:hover { opacity: 0.92; }
+        button.btn-confirm { background: var(--success); }
+        button.btn-cancel { background: #64748b; }
+        button.btn-reset { background: #475569; font-size: 0.8rem; padding: 0.4rem 0.8rem; }
+        .option-item {
+            display: block; padding: 0.75rem; border: 1px solid var(--border);
+            border-radius: 6px; margin-bottom: 0.5rem; cursor: pointer;
+        }
+        .option-item:hover { background: var(--primary-light); border-color: var(--accent); }
+        .hidden { display: none; }
+        .alert-info { background: #fef3c7; color: var(--warning); padding: 1rem; border-radius: 6px; border: 1px solid #fcd34d; }
+        .alert-success { background: var(--success-bg); color: var(--success); padding: 1rem; border-radius: 6px; border: 1px solid #86efac; }
+    </style>
+</head>
+<body>
+
+<header>
+    <div>
+        <h1>Sistema de Gestión de Bolsines — CU 28: Registrar Recepción de Bolsín</h1>
+        <span>UTN FRC · Diseño de Sistemas de Información · Grupo 8 (3K2)</span>
+    </div>
+    <button class="btn-reset" onclick="resetDemo()">Reiniciar BD Demo</button>
+</header>
+
+<div class="container">
+    <div class="card" id="panel-contexto">
+        <h2>1. Comisión Médica Destino (Empleado Logueado)</h2>
+        <div id="info-cm">Cargando datos de sesión...</div>
+    </div>
+
+    <div class="card" id="panel-bolsines">
+        <h2>2. Bolsines en Estado "Enviado" pendientes de recepción</h2>
+        <div id="lista-bolsines"></div>
+    </div>
+
+    <div class="card hidden" id="panel-detalle">
+        <h2>3. Contenido del Bolsín Seleccionado y Acción de Recepción</h2>
+        <div id="detalle-contenido"></div>
+
+        <h3 style="font-size: 1rem; margin-top: 1.25rem;">Seleccione el resultado de la verificación:</h3>
+        <div id="opciones-recepcion"></div>
+
+        <div style="margin-top: 1rem; display: flex; gap: 0.75rem;">
+            <button onclick="solicitarConfirmacion()">Continuar a Confirmación</button>
+            <button class="btn-cancel" onclick="cancelarOperacion()">Cancelar</button>
+        </div>
+    </div>
+
+    <div class="card hidden" id="panel-confirmacion">
+        <h2>4. Confirmar Registro de Recepción</h2>
+        <p id="texto-confirmacion" style="font-weight: 500;"></p>
+        <div style="display: flex; gap: 0.75rem;">
+            <button class="btn-confirm" onclick="confirmarRecepcion()">Confirmar Recepción</button>
+            <button class="btn-cancel" onclick="volverAOpciones()">Volver</button>
+        </div>
+    </div>
+
+    <div class="card hidden" id="panel-resultado">
+        <h2>5. Resultado de Ejecución y Trazabilidad de Estados (Patrón State)</h2>
+        <div id="resultado-contenido"></div>
+        <div style="margin-top: 1rem;">
+            <button onclick="iniciarCU28()">Registrar otro bolsín</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let opcionSeleccionada = null;
+
+    async function iniciarCU28() {
+        ocultarPaneles();
+        const res = await fetch('/api/cu28/iniciar');
+        const data = await res.json();
+
+        document.getElementById('info-cm').innerHTML = `
+            <strong>Operador:</strong> ${data.empleado} &nbsp;|&nbsp;
+            <strong>Comisión Médica:</strong> <span class="badge">${data.nombreCM}</span>
+        `;
+
+        const contenedor = document.getElementById('lista-bolsines');
+        if (!data.bolsines || data.bolsines.length === 0) {
+            contenedor.innerHTML = `<div class="alert-info">
+                No existen bolsines en estado <strong>Enviado</strong> pendientes de recepción para ${data.nombreCM}. (Flujo Alternativo)
+            </div>`;
+            return;
+        }
+
+        let html = `<table>
+            <thead>
+                <tr>
+                    <th>N° Bolsín</th>
+                    <th>Precinto</th>
+                    <th>Fecha Envío</th>
+                    <th>CM Origen</th>
+                    <th>Peso (kg)</th>
+                    <th>Estado</th>
+                    <th>Acción</th>
+                </tr>
+            </thead><tbody>`;
+
+        data.bolsines.forEach(b => {
+            html += `<tr>
+                <td><strong>#${b.numeroBolsin}</strong></td>
+                <td>${b.numeroPrecinto}</td>
+                <td>${b.fecha}</td>
+                <td>${b.cmOrigen}</td>
+                <td>${b.peso} kg</td>
+                <td><span class="badge">${b.estadoActual}</span></td>
+                <td><button onclick="seleccionarBolsin(${b.id})">Seleccionar</button></td>
+            </tr>`;
+        });
+        html += `</tbody></table>`;
+        contenedor.innerHTML = html;
+    }
+
+    async function seleccionarBolsin(id) {
+        const res = await fetch(`/api/cu28/seleccionar-bolsin/${id}`, { method: 'POST' });
+        const data = await res.json();
+
+        let html = `<p><strong>Bolsín N° ${data.bolsin.numeroBolsin}</strong> (Precinto: ${data.bolsin.numeroPrecinto} — Origen: ${data.bolsin.cmOrigen})</p>`;
+
+        data.remitos.forEach(r => {
+            html += `<div style="margin-top:0.75rem; padding:0.75rem; background:#f8fafc; border-radius:6px; border:1px solid #e2e8f0;">
+                <strong>Remito N° ${r.numero}</strong> (${r.fecha}) — Estado: <span class="badge">${r.estadoActual}</span>
+                <table>
+                    <thead><tr><th>N° Doc</th><th>Tipo</th><th>Asunto</th><th>Área CMC</th><th>Estado Actual</th></tr></thead>
+                    <tbody>
+                        ${r.documentaciones.map(d => `<tr>
+                            <td>${d.numero}</td>
+                            <td>${d.tipoDocumentacion}</td>
+                            <td>${d.asunto}</td>
+                            <td>${d.areaCMCDestino}</td>
+                            <td><span class="badge">${d.estadoActual}</span></td>
+                        </tr>`).join('')}
+                    </tbody>
+                </table>
+            </div>`;
+        });
+
+        document.getElementById('detalle-contenido').innerHTML = html;
+
+        opcionSeleccionada = data.opcionesRecepcion[0].codigo;
+        document.getElementById('opciones-recepcion').innerHTML = data.opcionesRecepcion.map((op, idx) => `
+            <label class="option-item">
+                <input type="radio" name="opcRec" value="${op.codigo}" ${idx === 0 ? 'checked' : ''}
+                       onchange="opcionSeleccionada = this.value">
+                <strong>${op.codigo}:</strong> ${op.etiqueta}
+            </label>
+        `).join('');
+
+        document.getElementById('panel-detalle').classList.remove('hidden');
+        document.getElementById('panel-confirmacion').classList.add('hidden');
+        document.getElementById('panel-resultado').classList.add('hidden');
+    }
+
+    async function solicitarConfirmacion() {
+        const res = await fetch('/api/cu28/seleccionar-opcion', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ opcion: opcionSeleccionada })
+        });
+        const data = await res.json();
+
+        document.getElementById('texto-confirmacion').textContent = data.mensajeConfirmacion;
+        document.getElementById('panel-confirmacion').classList.remove('hidden');
+    }
+
+    async function confirmarRecepcion() {
+        const res = await fetch('/api/cu28/confirmar', { method: 'POST' });
+        const data = await res.json();
+
+        if (!res.ok) {
+            alert(data.error);
+            return;
+        }
+
+        let html = `<div class="alert-success">
+            <strong>${data.mensaje}</strong><br>
+            <small>Fecha/Hora registro: ${data.fechaHoraRegistro} | Invocación CU 29: ${data.cu29Llamado ? 'Ejecutada' : 'No requerida'}</small>
+        </div>`;
+
+        html += `<h3 style="font-size:0.95rem; margin-top:1rem;">Historial CambioEstadoBolsin (Persistido en SQLite)</h3>
+        <table>
+            <thead><tr><th>Estado</th><th>Fecha/Hora Inicio</th><th>Fecha/Hora Fin</th></tr></thead>
+            <tbody>
+                ${data.historialEstadosBolsin.map(h => `<tr>
+                    <td><span class="badge ${h.fin === 'ACTUAL' ? 'badge-success' : ''}">${h.estado}</span></td>
+                    <td>${h.inicio}</td>
+                    <td>${h.fin}</td>
+                </tr>`).join('')}
+            </tbody>
+        </table>`;
+
+        html += `<h3 style="font-size:0.95rem; margin-top:1rem;">Estados Finales de Remito y Documentación</h3>
+        <table>
+            <thead><tr><th>N° Doc</th><th>Asunto</th><th>Estado Remito</th><th>Nuevo Estado Documentación</th></tr></thead>
+            <tbody>
+                ${data.documentacionesActualizadas.map(d => `<tr>
+                    <td>${d.numeroDoc}</td>
+                    <td>${d.asunto}</td>
+                    <td><span class="badge badge-success">${d.remitoEstado}</span></td>
+                    <td><span class="badge badge-success">${d.nuevoEstado}</span></td>
+                </tr>`).join('')}
+            </tbody>
+        </table>`;
+
+        document.getElementById('resultado-contenido').innerHTML = html;
+        ocultarPaneles();
+        document.getElementById('panel-resultado').classList.remove('hidden');
+        iniciarCU28RefrescarTabla();
+    }
+
+    async function iniciarCU28RefrescarTabla() {
+        const res = await fetch('/api/cu28/iniciar');
+        const data = await res.json();
+        const contenedor = document.getElementById('lista-bolsines');
+        if (!data.bolsines || data.bolsines.length === 0) {
+            contenedor.innerHTML = `<div class="alert-info">No quedan bolsines pendientes en estado <strong>Enviado</strong>.</div>`;
+        } else {
+            let html = `<table><thead><tr><th>N° Bolsín</th><th>Precinto</th><th>Fecha Envío</th><th>CM Origen</th><th>Peso</th><th>Estado</th><th>Acción</th></tr></thead><tbody>`;
+            data.bolsines.forEach(b => {
+                html += `<tr><td><strong>#${b.numeroBolsin}</strong></td><td>${b.numeroPrecinto}</td><td>${b.fecha}</td><td>${b.cmOrigen}</td><td>${b.peso} kg</td><td><span class="badge">${b.estadoActual}</span></td><td><button onclick="seleccionarBolsin(${b.id})">Seleccionar</button></td></tr>`;
+            });
+            contenedor.innerHTML = html + `</tbody></table>`;
+        }
+    }
+
+    function volverAOpciones() {
+        document.getElementById('panel-confirmacion').classList.add('hidden');
+    }
+
+    function cancelarOperacion() {
+        ocultarPaneles();
+    }
+
+    function ocultarPaneles() {
+        document.getElementById('panel-detalle').classList.add('hidden');
+        document.getElementById('panel-confirmacion').classList.add('hidden');
+    }
+
+    async function resetDemo() {
+        await fetch('/api/cu28/reset-demo', { method: 'POST' });
+        document.getElementById('panel-resultado').classList.add('hidden');
+        iniciarCU28();
+    }
+
+    window.onload = iniciarCU28;
+</script>
+</body>
+</html>
