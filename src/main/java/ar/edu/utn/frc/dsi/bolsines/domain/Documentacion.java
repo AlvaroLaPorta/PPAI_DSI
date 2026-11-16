@@ -1,6 +1,7 @@
 package ar.edu.utn.frc.dsi.bolsines.domain;
 
 import ar.edu.utn.frc.dsi.bolsines.domain.state.Estado;
+import ar.edu.utn.frc.dsi.bolsines.domain.state.doc.EnBolsinEnviadoDoc;
 import jakarta.persistence.*;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -19,54 +20,79 @@ public class Documentacion {
     @ManyToOne(optional = false)
     private TipoDocumentacion tipoDocumentacion;
 
+    // Referencia directa al estado activo (field state: State)
+    @ManyToOne(cascade = {CascadeType.PERSIST, CascadeType.MERGE}, optional = false)
+    private Estado estado;
+
     @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
     @JoinColumn(name = "documentacion_id")
     private List<CambioEstadoDocumentacion> cambioEstadoDocumentacion = new ArrayList<>();
 
     protected Documentacion() {}
+
+    // Constructor: inicializa el estado pasándose a sí mismo (this)
     public Documentacion(String asunto, LocalDate fechaPase, Integer numero,
-                         TipoDocumentacion tipoDocumentacion, Estado estadoInicial, LocalDateTime fechaInicio) {
+                         TipoDocumentacion tipoDocumentacion, LocalDateTime fechaInicio) {
         this.asunto = asunto;
         this.fechaPase = fechaPase;
         this.numero = numero;
         this.tipoDocumentacion = tipoDocumentacion;
+
+        Estado estadoInicial = new EnBolsinEnviadoDoc(this);
+        this.estado = estadoInicial;
         this.cambioEstadoDocumentacion.add(new CambioEstadoDocumentacion(fechaInicio, estadoInicial));
     }
 
-    public Estado getEstadoActual() {
-        return cambioEstadoDocumentacion.stream()
-                .filter(CambioEstadoDocumentacion::sosActual)
-                .map(CambioEstadoDocumentacion::getEstado)
-                .findFirst()
-                .orElseThrow(() -> new IllegalStateException("La documentación no posee estado actual"));
+    @PostLoad
+    private void reconstruirReferenciaInversa() {
+        if (this.estado != null) {
+            this.estado.vincularDocumentacion(this);
+        }
     }
 
-    public void aceptar(LocalDateTime fechaActual, Empleado empleado, Estado estadoDestino) {
-        getEstadoActual().aceptar(this, fechaActual, empleado, estadoDestino);
+    // Equivalente a changeState(state: State) / setEstado(estado: Estado)
+    public void setEstado(Estado nuevoEstado) {
+        this.estado = nuevoEstado;
+        if (this.estado != null) {
+            this.estado.vincularDocumentacion(this);
+        }
     }
 
-    public void denegar(LocalDateTime fechaActual, Empleado empleado, Estado estadoDestino) {
-        getEstadoActual().denegar(this, fechaActual, empleado, estadoDestino);
+    public void changeState(Estado nuevoEstado) {
+        setEstado(nuevoEstado);
     }
 
-    public void rechazar(LocalDateTime fechaActual, Empleado empleado, Estado estadoDestino) {
-        getEstadoActual().rechazar(this, fechaActual, empleado, estadoDestino);
+    // Delegación pura al estado activo según la Máquina de Estados de Documentación
+    public void aceptar(LocalDateTime fechaActual, Empleado nombre) {
+        this.estado.aceptar(fechaActual, nombre);
     }
 
-    public void redirigir(LocalDateTime fechaActual, Empleado empleado, Estado estadoDestino) {
-        getEstadoActual().redirigir(this, fechaActual, empleado, estadoDestino);
+    public void denegar(LocalDateTime fechaActual, Empleado nombre) {
+        this.estado.denegar(fechaActual, nombre);
     }
 
-    public void cambiarEstadoDoc(LocalDateTime fechaActual, Estado nuevoEstado) {
-        cambioEstadoDocumentacion.stream()
+    public void rechazar(LocalDateTime fechaActual, Empleado nombre) {
+        this.estado.rechazar(fechaActual, nombre);
+    }
+
+    public void redirigir(LocalDateTime fechaActual, Empleado nombre) {
+        this.estado.redirigir(fechaActual, nombre);
+    }
+
+    // Métodos de servicio del contexto invocados por los estados concretos
+    public void cerrarCambioEstadoActual(LocalDateTime fechaActual) {
+        this.cambioEstadoDocumentacion.stream()
                 .filter(CambioEstadoDocumentacion::sosActual)
                 .findFirst()
                 .ifPresent(actual -> actual.setFechaHoraFin(fechaActual));
-        agregarCambioEstado(new CambioEstadoDocumentacion(fechaActual, nuevoEstado));
     }
 
     public void agregarCambioEstado(CambioEstadoDocumentacion cambioEstado) {
         this.cambioEstadoDocumentacion.add(cambioEstado);
+    }
+
+    public Estado getEstadoActual() {
+        return this.estado;
     }
 
     public Long getId() { return id; }

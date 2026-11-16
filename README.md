@@ -1,46 +1,86 @@
-# PPAI 2026 - Caso de Uso 28: "Registrar recepción de bolsín"
-**Diseño de Sistemas de Información (UTN FRC)**  
-**Grupo 8 — Curso 3K2**
+# PPAI 2026 - Caso de Uso 28: Registrar Recepción de Bolsín
 
-Este repositorio contiene la implementación del MVP (Producto Mínimo Viable) correspondiente a la Entrega 2 del Proyecto Práctico de Aplicación Integrador (PPAI), aplicando el **Patrón State** sobre la jerarquía de estados de `Bolsin`, `Remito` y `Documentacion`, con persistencia en base de datos SQLite y una interfaz web desacoplada.
+**Universidad Tecnológica Nacional - Facultad Regional Córdoba (UTN-FRC)**  
+**Cátedra:** Diseño de Sistemas de Información | **Curso:** 3K2 | **Grupo:** 8
 
----
-
-## Prerrequisitos
-
-Para ejecutar este proyecto de manera local, asegúrese de tener instalado:
-* **Java Development Kit (JDK) 17** o superior.
-* **Apache Maven 3.6+** (para la gestión de dependencias y ejecución del proyecto).
-* Un navegador web moderno (Google Chrome, Firefox, Edge, etc.).
+Implementación del MVP correspondiente a la **Entrega 2: Diseño**, aplicando el patrón de diseño **State** (Gamma) con referencias inversas en los tres contextos del dominio (`Bolsin`, `Remito` y `Documentacion`), alineado con el Diagrama de Clases de Rediseño v2.1 y el Diagrama de Secuencia v2_2.
 
 ---
 
-## Instrucciones para Iniciar la Aplicación
+## Requisitos Previos
 
-Siga estos pasos desde su terminal o entorno de desarrollo (como Visual Studio Code):
+* **Java JDK 17** o superior (`java -version`)
+* **Apache Maven 3.8+** (`mvn -version`)
 
-### 1. Ejecutar la aplicación con Maven
-Inicie el servidor de Spring Boot ejecutando el siguiente comando:
-```bash
-mvn spring-boot:run
-```
+---
 
-El framework compilará el código fuente, levantará el servidor embebido en el puerto `8080` y precargará automáticamente en la base de datos SQLite (`bolsines.db`) el catálogo de estados polimórficos, las comisiones médicas, el empleado logueado y los bolsines de prueba.
+## Estructura del Repositorio
 
-### 2. Acceder a la Interfaz Web
-Abra su navegador web e ingrese a la siguiente URL:
 ```text
-http://localhost:8080
+ppai-bolsines-cu28/
+├── pom.xml
+├── README.md
+└── src/main/
+    ├── java/ar/edu/utn/frc/dsi/bolsines/
+    │   ├── BolsinesApplication.java
+    │   ├── boundary/
+    │   │   └── PantallaAdmRecpBolsin.java
+    │   ├── control/
+    │   │   └── GestorRecpBolsin.java
+    │   ├── domain/
+    │   │   ├── Bolsin.java
+    │   │   ├── CambioEstadoBolsin.java
+    │   │   ├── CambioEstadoDocumentacion.java
+    │   │   ├── ComisionMedica.java
+    │   │   ├── DetalleRemito.java
+    │   │   ├── Documentacion.java
+    │   │   ├── Empleado.java
+    │   │   ├── Remito.java
+    │   │   ├── Sesion.java
+    │   │   ├── TipoDocumentacion.java
+    │   │   ├── Usuario.java
+    │   │   └── state/
+    │   │       ├── Estado.java
+    │   │       ├── bolsin/
+    │   │       ├── remito/
+    │   │       └── doc/
+    │   ├── repository/
+    │   │   ├── BolsinRepository.java
+    │   │   ├── EmpleadoRepository.java
+    │   │   ├── EstadoRepository.java
+    │   │   └── SesionRepository.java
+    │   └── config/
+    │       └── DataSeeder.java
+    └── resources/
+        ├── application.properties
+        └── static/
+            └── index.html
 ```
 
 ---
 
-## Guía rápida de uso y demostración (Defensa Oral)
+## Pasos para Iniciar la Aplicación
 
-1. **Pantalla inicial (Contexto):** Visualizará el usuario logueado (*Aita Tagle, José*) y su Comisión Médica destino (*CM N° 05 - Córdoba (CMC)*), junto con la tabla de bolsines pendientes en estado **Enviado**.
-2. **Selección de Bolsín:** Haga clic en **Seleccionar** en cualquiera de los bolsines listados para cargar su detalle de remitos y documentaciones.
-3. **Flujo de Recepción (Patrón State):**
-   * Seleccione la opción de recepción deseada (por ejemplo, *Aceptar recepción* para el flujo principal o *Denegar recepción* / *Rechazar* para los flujos alternativos).
-   * Haga clic en **Continuar a Confirmación** y luego en **Confirmar Recepción**.
-4. **Verificación de Trazabilidad:** El sistema mostrará el resultado de la ejecución, el cambio de estado actualizado en cascada y el historial persistido en SQLite.
-5. **Reiniciar Demo:** Si desea repetir la demostración con los bolsines iniciales durante la defensa, puede hacer clic en el botón superior **Reiniciar BD Demo** en cualquier momento.
+1. **Ubicate en la raíz del proyecto:**
+   ```bash
+   cd ppai-bolsines-cu28
+   ```
+   *(Si existe un archivo `bolsines.db` de una versión anterior, eliminalo antes de iniciar para que SQLite regenere el esquema actualizado).*
+
+2. **Compilá y ejecutá el servidor Spring Boot:**
+   ```bash
+   mvn spring-boot:run
+   ```
+
+3. **Abrí la interfaz web en el navegador:**
+   Ingresá a [http://localhost:8080](http://localhost:8080).
+
+---
+
+## Escenarios de Prueba Precargados (`DataSeeder`)
+
+* **Operador logueado:** José Aita Tagle (`jaita`) — **CM N° 05 - Córdoba (CMC)**
+* **Bolsín #1042** (desde Villa María): Para ejecutar el **Flujo Principal** (`ACEPTAR` -> `RecibidoEnCMDestino` / `RecibidoYAceptado` / `RecibidaYAceptada`).
+* **Bolsín #1043** (desde Río Cuarto): Para ejecutar **Flujo Alternativo 1** (`DENEGAR` -> `NoRecibida`).
+* **Bolsín #1044** (desde Villa María): Para ejecutar **Flujo Alternativo 2** (`RECHAZAR` -> `RecibidaYRechazada` o `REDIRIGIR` -> `ParaRedirigir`).
+* **Bolsín #2099** (destino Río Cuarto): Filtrado automáticamente por `esTuCmDestino()`.

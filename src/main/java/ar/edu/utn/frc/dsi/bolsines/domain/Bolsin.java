@@ -1,6 +1,7 @@
 package ar.edu.utn.frc.dsi.bolsines.domain;
 
 import ar.edu.utn.frc.dsi.bolsines.domain.state.Estado;
+import ar.edu.utn.frc.dsi.bolsines.domain.state.bolsin.Enviado;
 import jakarta.persistence.*;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -23,6 +24,10 @@ public class Bolsin {
     @ManyToOne(optional = false)
     private ComisionMedica destino;
 
+    // Referencia directa al estado activo (field state: State)
+    @ManyToOne(cascade = {CascadeType.PERSIST, CascadeType.MERGE}, optional = false)
+    private Estado estado;
+
     @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
     @JoinColumn(name = "bolsin_id")
     private List<Remito> remitos = new ArrayList<>();
@@ -32,15 +37,60 @@ public class Bolsin {
     private List<CambioEstadoBolsin> cambioEstadoBolsin = new ArrayList<>();
 
     protected Bolsin() {}
+
+    // Constructor: inicializa el estado pasándose a sí mismo (this.state = new Enviado(this))
     public Bolsin(String numeroPrecinto, LocalDate fecha, Integer numeroBolsin, Double peso,
-                  ComisionMedica origen, ComisionMedica destino, Estado estadoInicial, LocalDateTime fechaInicio) {
+                  ComisionMedica origen, ComisionMedica destino, LocalDateTime fechaInicio) {
         this.numeroPrecinto = numeroPrecinto;
         this.fecha = fecha;
         this.numeroBolsin = numeroBolsin;
         this.peso = peso;
         this.origen = origen;
         this.destino = destino;
+
+        Estado estadoInicial = new Enviado(this);
+        this.estado = estadoInicial;
         this.cambioEstadoBolsin.add(new CambioEstadoBolsin(fechaInicio, estadoInicial));
+    }
+
+    @PostLoad
+    private void reconstruirReferenciaInversa() {
+        if (this.estado != null) {
+            this.estado.vincularBolsin(this);
+        }
+    }
+
+    // Equivalente a changeState(state: State) / setEstado(estado: Estado)
+    public void setEstado(Estado nuevoEstado) {
+        this.estado = nuevoEstado;
+        if (this.estado != null) {
+            this.estado.vincularBolsin(this);
+        }
+    }
+
+    public void changeState(Estado nuevoEstado) {
+        setEstado(nuevoEstado);
+    }
+
+    // Delegación pura al estado activo
+    public void recibirYAceptarBolsin() {
+        recibirYAceptarBolsin(LocalDateTime.now(), null, "ACEPTAR");
+    }
+
+    public void recibirYAceptarBolsin(LocalDateTime fechaActual, Empleado nombre, String opcionRecepcion) {
+        this.estado.recibirYAceptarBolsin(fechaActual, nombre, opcionRecepcion);
+    }
+
+    // Métodos de servicio del contexto invocados por los estados concretos
+    public void cerrarCambioEstadoActual(LocalDateTime fechaActual) {
+        this.cambioEstadoBolsin.stream()
+                .filter(CambioEstadoBolsin::sosActual)
+                .findFirst()
+                .ifPresent(actual -> actual.setFechaHoraFin(fechaActual));
+    }
+
+    public void agregarCambioEstado(CambioEstadoBolsin cambioEstado) {
+        this.cambioEstadoBolsin.add(cambioEstado);
     }
 
     public boolean esTuCmDestino(ComisionMedica cm) {
@@ -48,34 +98,11 @@ public class Bolsin {
     }
 
     public boolean sosEstadoEnviado() {
-        return cambioEstadoBolsin.stream()
-                .filter(CambioEstadoBolsin::sosActual)
-                .anyMatch(CambioEstadoBolsin::sosEnviado);
+        return this.estado != null && this.estado.esEnviado();
     }
 
     public Estado getEstadoActual() {
-        return cambioEstadoBolsin.stream()
-                .filter(CambioEstadoBolsin::sosActual)
-                .map(CambioEstadoBolsin::getEstado)
-                .findFirst()
-                .orElseThrow(() -> new IllegalStateException("El bolsín no posee estado actual"));
-    }
-
-    public void recibirYAceptarBolsin(LocalDateTime fechaActual, Empleado empleado,
-                                      List<Estado> estadosCatalogo, String opcionRecepcion) {
-        getEstadoActual().recibirYAceptarBolsin(this, fechaActual, empleado, estadosCatalogo, opcionRecepcion);
-    }
-
-    public void cambiarEstadoBolsin(LocalDateTime fechaActual, Estado nuevoEstado) {
-        cambioEstadoBolsin.stream()
-                .filter(CambioEstadoBolsin::sosActual)
-                .findFirst()
-                .ifPresent(actual -> actual.setFechaHoraFin(fechaActual));
-        agregarCambioEstado(new CambioEstadoBolsin(fechaActual, nuevoEstado));
-    }
-
-    public void agregarCambioEstado(CambioEstadoBolsin cambioEstado) {
-        this.cambioEstadoBolsin.add(cambioEstado);
+        return this.estado;
     }
 
     public Long getId() { return id; }

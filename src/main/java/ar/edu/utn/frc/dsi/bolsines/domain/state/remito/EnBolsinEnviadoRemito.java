@@ -5,7 +5,6 @@ import ar.edu.utn.frc.dsi.bolsines.domain.state.Estado;
 import jakarta.persistence.DiscriminatorValue;
 import jakarta.persistence.Entity;
 import java.time.LocalDateTime;
-import java.util.List;
 
 @Entity
 @DiscriminatorValue("REMITO_EN_BOLSIN_ENVIADO")
@@ -15,18 +14,30 @@ public class EnBolsinEnviadoRemito extends Estado {
         super("EnBolsinEnviado", "Remito viajando dentro de un bolsín enviado", "Remito");
     }
 
+    public EnBolsinEnviadoRemito(Remito remito) {
+        super("EnBolsinEnviado", "Remito viajando dentro de un bolsín enviado", "Remito", remito);
+    }
+
+    // Secuencia 1.3.1.7.1 -> 1.3.1.7.1.5 sobre la referencia inversa this.remito
     @Override
-    public void recibirYAceptar(Remito remito, Empleado empleado,
-                                List<Estado> estadosCatalogo, LocalDateTime fechaActual, String opcionRecepcion) {
-        Estado estadoRemitoAceptado = estadosCatalogo.stream()
-                .filter(e -> e.esAmbitoRemito() && e.esRecibidoYAceptado())
-                .findFirst()
-                .orElseThrow(() -> new IllegalStateException("No se encontró el estado RecibidoYAceptado para Remito"));
+    public void recibirYAceptar(LocalDateTime fechaActual, Empleado nombre, String opcionRecepcion) {
+        // 1.3.1.7.1.1 -> 1.3.1.7.1.2: crearEstadoRem(): RecibidoYAceptado
+        RecibidoYAceptadoRemito nuevoEstadoRem = crearEstadoRem();
 
-        remito.setEstado(estadoRemitoAceptado);
+        // 1.3.1.7.1.3: cambiarEstadoDocumentacion(fechaActual: DateTime)
+        cambiarEstadoDocumentacion(fechaActual, nombre, opcionRecepcion);
 
-        for (DetalleRemito detalle : remito.getDetalleRemito()) {
-            detalle.aceptar(fechaActual, empleado, estadosCatalogo, opcionRecepcion);
+        // 1.3.1.7.1.5: setEstado(estado: RecibidoYAceptado)
+        this.remito.setEstado(nuevoEstadoRem);
+    }
+
+    public RecibidoYAceptadoRemito crearEstadoRem() {
+        return new RecibidoYAceptadoRemito(this.remito);
+    }
+
+    public void cambiarEstadoDocumentacion(LocalDateTime fechaActual, Empleado nombre, String opcionRecepcion) {
+        for (DetalleRemito detalle : this.remito.getDetalleRemito()) {
+            detalle.procesarRecepcion(fechaActual, nombre, opcionRecepcion);
         }
     }
 }

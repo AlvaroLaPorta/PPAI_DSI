@@ -11,7 +11,7 @@
     </parent>
     <groupId>ar.edu.utn.frc.dsi</groupId>
     <artifactId>ppai-bolsines-cu28</artifactId>
-    <version>1.0.0</version>
+    <version>2.0.0</version>
     <name>PPAI 2026 - CU 28 Registrar Recepcion de Bolsin</name>
 
     <properties>

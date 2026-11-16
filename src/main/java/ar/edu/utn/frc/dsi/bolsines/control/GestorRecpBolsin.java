@@ -1,7 +1,6 @@
 package ar.edu.utn.frc.dsi.bolsines.control;
 
 import ar.edu.utn.frc.dsi.bolsines.domain.*;
-import ar.edu.utn.frc.dsi.bolsines.domain.state.Estado;
 import ar.edu.utn.frc.dsi.bolsines.repository.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,7 +14,6 @@ public class GestorRecpBolsin {
     private final SesionRepository sesionRepository;
     private final EmpleadoRepository empleadoRepository;
     private final BolsinRepository bolsinRepository;
-    private final EstadoRepository estadoRepository;
 
     private Usuario usuario;
     private Empleado empleadoLogueado;
@@ -24,16 +22,13 @@ public class GestorRecpBolsin {
     private Bolsin bolsinSeleccionado;
     private String opcionRecepcionSeleccionada;
     private LocalDateTime fechaHoraActual;
-    private List<Estado> estados;
 
     public GestorRecpBolsin(SesionRepository sesionRepository,
                             EmpleadoRepository empleadoRepository,
-                            BolsinRepository bolsinRepository,
-                            EstadoRepository estadoRepository) {
+                            BolsinRepository bolsinRepository) {
         this.sesionRepository = sesionRepository;
         this.empleadoRepository = empleadoRepository;
         this.bolsinRepository = bolsinRepository;
-        this.estadoRepository = estadoRepository;
     }
 
     public Map<String, Object> selOpcRegRecpBolsin() {
@@ -142,6 +137,7 @@ public class GestorRecpBolsin {
         );
     }
 
+    // Secuencia 1 -> 1.1 -> 1.2 -> 1.3
     @Transactional
     public Map<String, Object> tomarConfirmacion() {
         if (bolsinSeleccionado == null || opcionRecepcionSeleccionada == null) {
@@ -150,8 +146,9 @@ public class GestorRecpBolsin {
 
         Bolsin bolsinManaged = bolsinRepository.findById(bolsinSeleccionado.getId()).orElseThrow();
 
+        // 1.1: obtenerFechaYHoraActual()
         obtenerFechaYHoraActual();
-        buscarEstados();
+        // 1.2: actualizarEstados() -> 1.3: recibirYAceptarBolsin()
         actualizarEstados(bolsinManaged);
 
         bolsinRepository.save(bolsinManaged);
@@ -166,15 +163,10 @@ public class GestorRecpBolsin {
         this.fechaHoraActual = LocalDateTime.now();
     }
 
-    public void buscarEstados() {
-        this.estados = estadoRepository.findAll();
-    }
-
     public void actualizarEstados(Bolsin bolsinManaged) {
         bolsinManaged.recibirYAceptarBolsin(
                 this.fechaHoraActual,
                 this.empleadoLogueado,
-                this.estados,
                 this.opcionRecepcionSeleccionada
         );
     }
