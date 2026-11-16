@@ -4,6 +4,7 @@ import ar.edu.utn.frc.dsi.bolsines.domain.Bolsin;
 import ar.edu.utn.frc.dsi.bolsines.domain.Documentacion;
 import ar.edu.utn.frc.dsi.bolsines.domain.Empleado;
 import ar.edu.utn.frc.dsi.bolsines.domain.Remito;
+import ar.edu.utn.frc.dsi.bolsines.domain.OpcionRecepcion;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -33,6 +34,7 @@ public abstract class Estado {
     public boolean esEnviado() { return false; }
     public boolean esRecibido() { return false; }
     public boolean esRecibidoYAceptado() { return false; }
+    public boolean esRecibidoYAceptadoParcial() { return false; }
     public boolean esRecibidoYAceptada() { return false; }
     public boolean esNoRecibida() { return false; }
     public boolean esRecibidaYRechazada() { return false; }
@@ -43,12 +45,12 @@ public abstract class Estado {
     public boolean esAmbitoDocumentacion() { return "Documentacion".equalsIgnoreCase(this.ambito); }
 
     public void recibirYAceptarBolsin(Bolsin bolsin, LocalDateTime fechaActual, Empleado empleado,
-                                      List<Estado> estadosCatalogo, String opcionRecepcion) {
+                                      List<Estado> estadosCatalogo, java.util.Map<Long, OpcionRecepcion> opciones) {
         throw new UnsupportedOperationException("Transición recibirYAceptarBolsin no válida en estado: " + nombre);
     }
 
     public void recibirYAceptar(Remito remito, Empleado empleado,
-                                List<Estado> estadosCatalogo, LocalDateTime fechaActual, String opcionRecepcion) {
+                                List<Estado> estadosCatalogo, LocalDateTime fechaActual, java.util.Map<Long, OpcionRecepcion> opciones) {
         throw new UnsupportedOperationException("Transición recibirYAceptar no válida en estado: " + nombre);
     }
 

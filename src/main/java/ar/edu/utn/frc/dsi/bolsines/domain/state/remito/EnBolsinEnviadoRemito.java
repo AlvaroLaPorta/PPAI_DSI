@@ -17,16 +17,18 @@ public class EnBolsinEnviadoRemito extends Estado {
 
     @Override
     public void recibirYAceptar(Remito remito, Empleado empleado,
-                                List<Estado> estadosCatalogo, LocalDateTime fechaActual, String opcionRecepcion) {
-        Estado estadoRemitoAceptado = estadosCatalogo.stream()
-                .filter(e -> e.esAmbitoRemito() && e.esRecibidoYAceptado())
+                                List<Estado> estadosCatalogo, LocalDateTime fechaActual, java.util.Map<Long, OpcionRecepcion> opciones) {
+        boolean hayFaltantes = remito.getDetalleRemito().stream()
+                .anyMatch(d -> opciones.get(d.getDocumentacion().getId()) == OpcionRecepcion.DENEGAR);
+        Estado estadoDestino = estadosCatalogo.stream()
+                .filter(e -> e.esAmbitoRemito() && (hayFaltantes
+                        ? e.esRecibidoYAceptadoParcial() : e.esRecibidoYAceptado()))
                 .findFirst()
-                .orElseThrow(() -> new IllegalStateException("No se encontró el estado RecibidoYAceptado para Remito"));
-
-        remito.setEstado(estadoRemitoAceptado);
-
+                .orElseThrow(() -> new IllegalStateException("No se encontró el estado destino del remito"));
         for (DetalleRemito detalle : remito.getDetalleRemito()) {
-            detalle.aceptar(fechaActual, empleado, estadosCatalogo, opcionRecepcion);
+            detalle.aceptar(fechaActual, empleado, estadosCatalogo,
+                    opciones.get(detalle.getDocumentacion().getId()));
         }
+        remito.setEstado(estadoDestino);
     }
 }

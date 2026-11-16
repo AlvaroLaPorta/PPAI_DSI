@@ -17,21 +17,21 @@ public class EnBolsinEnviadoDoc extends Estado {
 
     @Override
     public void aceptar(Documentacion doc, LocalDateTime fechaActual, Empleado empleado, Estado estadoDestino) {
-        doc.cambiarEstadoDoc(fechaActual, estadoDestino);
+        doc.cambiarEstadoDoc(fechaActual, estadoDestino, empleado);
     }
 
     @Override
     public void denegar(Documentacion doc, LocalDateTime fechaActual, Empleado empleado, Estado estadoDestino) {
-        doc.cambiarEstadoDoc(fechaActual, estadoDestino);
+        doc.cambiarEstadoDoc(fechaActual, estadoDestino, empleado);
     }
 
     @Override
     public void rechazar(Documentacion doc, LocalDateTime fechaActual, Empleado empleado, Estado estadoDestino) {
-        doc.cambiarEstadoDoc(fechaActual, estadoDestino);
+        doc.cambiarEstadoDoc(fechaActual, estadoDestino, empleado);
     }
 
     @Override
     public void redirigir(Documentacion doc, LocalDateTime fechaActual, Empleado empleado, Estado estadoDestino) {
-        doc.cambiarEstadoDoc(fechaActual, estadoDestino);
+        doc.cambiarEstadoDoc(fechaActual, estadoDestino, empleado);
     }
 }

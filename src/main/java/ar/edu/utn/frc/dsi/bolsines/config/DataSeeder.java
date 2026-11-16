@@ -39,6 +39,9 @@ public class DataSeeder implements ApplicationRunner {
     @Override
     @Transactional
     public void run(ApplicationArguments args) {
+        // Compatibilidad con bases de la demo anterior, que no tenían control de versión.
+        em.createQuery("UPDATE Bolsin b SET b.version = 0 WHERE b.version IS NULL").executeUpdate();
+        em.createQuery("UPDATE Documentacion d SET d.version = 0 WHERE d.version IS NULL").executeUpdate();
         if (estadoRepo.count() == 0) {
             cargarDatosIniciales();
         }
@@ -46,13 +49,17 @@ public class DataSeeder implements ApplicationRunner {
 
     @Transactional
     public void cargarDatosIniciales() {
+        em.createQuery("DELETE FROM NotificacionRecepcion").executeUpdate();
         bolsinRepo.deleteAll();
         sesionRepo.deleteAll();
         empleadoRepo.deleteAll();
+        em.flush();
         em.createQuery("DELETE FROM Usuario").executeUpdate();
         em.createQuery("DELETE FROM ComisionMedica").executeUpdate();
         em.createQuery("DELETE FROM TipoDocumentacion").executeUpdate();
         estadoRepo.deleteAll();
+        em.flush();
+        em.clear();
 
         Estado bolsinEnviado = new Enviado();
         Estado bolsinRecibido = new RecibidoEnCMDestino();

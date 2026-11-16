@@ -30,8 +30,8 @@ public class Remito {
     }
 
     public void recibirYAceptar(Empleado empleado, List<Estado> estadosCatalogo,
-                                LocalDateTime fechaActual, String opcionRecepcion) {
-        this.estado.recibirYAceptar(this, empleado, estadosCatalogo, fechaActual, opcionRecepcion);
+                                LocalDateTime fechaActual, java.util.Map<Long, OpcionRecepcion> opciones) {
+        this.estado.recibirYAceptar(this, empleado, estadosCatalogo, fechaActual, opciones);
     }
 
     public Integer getNumero() { return numero; }

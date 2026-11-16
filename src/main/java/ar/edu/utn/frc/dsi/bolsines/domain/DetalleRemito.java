@@ -21,27 +21,27 @@ public class DetalleRemito {
         this.documentacion = documentacion;
     }
 
-    public void aceptar(LocalDateTime fechaActual, Empleado empleado, List<Estado> estadosCatalogo, String opcionRecepcion) {
+    public void aceptar(LocalDateTime fechaActual, Empleado empleado, List<Estado> estadosCatalogo, OpcionRecepcion opcionRecepcion) {
         switch (opcionRecepcion) {
-            case "ACEPTAR" -> {
+            case ACEPTAR -> {
                 Estado est = estadosCatalogo.stream()
                         .filter(e -> e.esAmbitoDocumentacion() && e.esRecibidoYAceptada())
                         .findFirst().orElseThrow();
                 documentacion.aceptar(fechaActual, empleado, est);
             }
-            case "DENEGAR" -> {
+            case DENEGAR -> {
                 Estado est = estadosCatalogo.stream()
                         .filter(e -> e.esAmbitoDocumentacion() && e.esNoRecibida())
                         .findFirst().orElseThrow();
                 documentacion.denegar(fechaActual, empleado, est);
             }
-            case "RECHAZAR" -> {
+            case RECHAZAR -> {
                 Estado est = estadosCatalogo.stream()
                         .filter(e -> e.esAmbitoDocumentacion() && e.esRecibidaYRechazada())
                         .findFirst().orElseThrow();
                 documentacion.rechazar(fechaActual, empleado, est);
             }
-            case "REDIRIGIR" -> {
+            case REDIRIGIR -> {
                 Estado est = estadosCatalogo.stream()
                         .filter(e -> e.esAmbitoDocumentacion() && e.esParaRedirigir())
                         .findFirst().orElseThrow();

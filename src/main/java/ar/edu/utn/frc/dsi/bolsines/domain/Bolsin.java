@@ -12,6 +12,9 @@ public class Bolsin {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Version
+    private Long version;
     private String numeroPrecinto;
     private LocalDate fecha;
     private Integer numeroBolsin;
@@ -62,16 +65,16 @@ public class Bolsin {
     }
 
     public void recibirYAceptarBolsin(LocalDateTime fechaActual, Empleado empleado,
-                                      List<Estado> estadosCatalogo, String opcionRecepcion) {
-        getEstadoActual().recibirYAceptarBolsin(this, fechaActual, empleado, estadosCatalogo, opcionRecepcion);
+                                      List<Estado> estadosCatalogo, java.util.Map<Long, OpcionRecepcion> opciones) {
+        getEstadoActual().recibirYAceptarBolsin(this, fechaActual, empleado, estadosCatalogo, opciones);
     }
 
-    public void cambiarEstadoBolsin(LocalDateTime fechaActual, Estado nuevoEstado) {
+    public void cambiarEstadoBolsin(LocalDateTime fechaActual, Estado nuevoEstado, Empleado empleado) {
         cambioEstadoBolsin.stream()
                 .filter(CambioEstadoBolsin::sosActual)
                 .findFirst()
                 .ifPresent(actual -> actual.setFechaHoraFin(fechaActual));
-        agregarCambioEstado(new CambioEstadoBolsin(fechaActual, nuevoEstado));
+        agregarCambioEstado(new CambioEstadoBolsin(fechaActual, nuevoEstado, empleado));
     }
 
     public void agregarCambioEstado(CambioEstadoBolsin cambioEstado) {

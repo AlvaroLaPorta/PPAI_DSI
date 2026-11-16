@@ -12,6 +12,9 @@ public class Documentacion {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Version
+    private Long version;
     private String asunto;
     private LocalDate fechaPase;
     private Integer numero;
@@ -57,12 +60,12 @@ public class Documentacion {
         getEstadoActual().redirigir(this, fechaActual, empleado, estadoDestino);
     }
 
-    public void cambiarEstadoDoc(LocalDateTime fechaActual, Estado nuevoEstado) {
+    public void cambiarEstadoDoc(LocalDateTime fechaActual, Estado nuevoEstado, Empleado empleado) {
         cambioEstadoDocumentacion.stream()
                 .filter(CambioEstadoDocumentacion::sosActual)
                 .findFirst()
                 .ifPresent(actual -> actual.setFechaHoraFin(fechaActual));
-        agregarCambioEstado(new CambioEstadoDocumentacion(fechaActual, nuevoEstado));
+        agregarCambioEstado(new CambioEstadoDocumentacion(fechaActual, nuevoEstado, empleado));
     }
 
     public void agregarCambioEstado(CambioEstadoDocumentacion cambioEstado) {

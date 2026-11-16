@@ -1,46 +1,38 @@
-# PPAI 2026 - Caso de Uso 28: "Registrar recepción de bolsín"
-**Diseño de Sistemas de Información (UTN FRC)**  
-**Grupo 8 — Curso 3K2**
+# PPAI 2026 — CU28: Registrar recepción de bolsín
 
-Este repositorio contiene la implementación del MVP (Producto Mínimo Viable) correspondiente a la Entrega 2 del Proyecto Práctico de Aplicación Integrador (PPAI), aplicando el **Patrón State** sobre la jerarquía de estados de `Bolsin`, `Remito` y `Documentacion`, con persistencia en base de datos SQLite y una interfaz web desacoplada.
+Diseño de Sistemas de Información, UTN FRC. Grupo 8, curso 3K2. Entrega 2: implementación del rediseño con patrón State sobre Documentación, conforme al alcance del CU28 de la ERS v1.2.
 
----
+Java 17+, Spring Boot 3.2.5, interfaz web HTML/JavaScript, SQLite y persistencia JPA/Hibernate. Se requiere Maven 3.6+.
 
-## Prerrequisitos
+## Ejecutar
 
-Para ejecutar este proyecto de manera local, asegúrese de tener instalado:
-* **Java Development Kit (JDK) 17** o superior.
-* **Apache Maven 3.6+** (para la gestión de dependencias y ejecución del proyecto).
-* Un navegador web moderno (Google Chrome, Firefox, Edge, etc.).
-
----
-
-## Instrucciones para Iniciar la Aplicación
-
-Siga estos pasos desde su terminal o entorno de desarrollo (como Visual Studio Code):
-
-### 1. Ejecutar la aplicación con Maven
-Inicie el servidor de Spring Boot ejecutando el siguiente comando:
 ```bash
 mvn spring-boot:run
 ```
 
-El framework compilará el código fuente, levantará el servidor embebido en el puerto `8080` y precargará automáticamente en la base de datos SQLite (`bolsines.db`) el catálogo de estados polimórficos, las comisiones médicas, el empleado logueado y los bolsines de prueba.
+Abrir http://localhost:8080. Se utiliza una única sesión de demostración precargada para el empleado José Aita Tagle de la CMC Córdoba; no se implementa autenticación. La base `bolsines.db` conserva las recepciones entre reinicios. El botón **Reiniciar BD Demo** elimina los registros de demostración y vuelve a cargar los datos iniciales.
 
-### 2. Acceder a la Interfaz Web
-Abra su navegador web e ingrese a la siguiente URL:
-```text
-http://localhost:8080
+## Demostrar el CU28
+
+1. Buscar los bolsines enviados a la CM del empleado. Se puede filtrar por precinto o CM origen; los filtros sin coincidencias muestran el resultado vacío (A1/A2).
+2. Seleccionar el bolsín 1042, que contiene dos documentos.
+3. Para el flujo principal, elegir **El contenido del bolsín es igual al registrado**, continuar y confirmar. Se aceptan todos los documentos y remitos.
+4. Reiniciar la demo para repetir con otra situación. Para faltantes (A3), elegir la opción y marcar solo el documento que no llegó: ese documento queda NoRecibida, el restante se acepta y el remito queda parcial.
+5. Para rechazo (A4), marcar solo el documento que no corresponde a la CM. Para redirección (A5), marcar los documentos a distribuir internamente en la CMC.
+6. Mostrar los estados finales y el empleado responsable. Volver o cancelar antes de confirmar no registra cambios (A6 y observación 1).
+
+La selección se mantiene en cada pestaña. El servidor vuelve a validar la solicitud completa al confirmar y no conserva selecciones globales.
+
+## Notificación al origen: integración pendiente
+
+La recepción invoca `GestorNotificarRecepcion`, que guarda en la misma transacción una notificación con destinatario y situación de cada documento. **El envío por email del CU29 está pendiente de integrar con un servicio de correo.** La interfaz informa “pendiente de envío”; no se envían correos reales.
+
+## Verificar
+
+```bash
+mvn test
 ```
 
----
+Las pruebas utilizan una base SQLite temporal independiente de `bolsines.db`. Cubren los flujos de recepción, validaciones, responsables, atomicidad, selecciones independientes y persistencia tras reiniciar.
 
-## Guía rápida de uso y demostración (Defensa Oral)
-
-1. **Pantalla inicial (Contexto):** Visualizará el usuario logueado (*Aita Tagle, José*) y su Comisión Médica destino (*CM N° 05 - Córdoba (CMC)*), junto con la tabla de bolsines pendientes en estado **Enviado**.
-2. **Selección de Bolsín:** Haga clic en **Seleccionar** en cualquiera de los bolsines listados para cargar su detalle de remitos y documentaciones.
-3. **Flujo de Recepción (Patrón State):**
-   * Seleccione la opción de recepción deseada (por ejemplo, *Aceptar recepción* para el flujo principal o *Denegar recepción* / *Rechazar* para los flujos alternativos).
-   * Haga clic en **Continuar a Confirmación** y luego en **Confirmar Recepción**.
-4. **Verificación de Trazabilidad:** El sistema mostrará el resultado de la ejecución, el cambio de estado actualizado en cascada y el historial persistido en SQLite.
-5. **Reiniciar Demo:** Si desea repetir la demostración con los bolsines iniciales durante la defensa, puede hacer clic en el botón superior **Reiniciar BD Demo** en cualquier momento.
+Ver [adecuación al CU28 y cambios para los modelos](docs/adecuacion-cu28.md), con decisiones de interpretación, diagrama de relaciones y secuencia del escenario rediseñado. Los PDF aportados permanecen sin modificar; estos diagramas sirven de base para actualizar la entrega formal.

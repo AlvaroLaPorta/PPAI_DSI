@@ -10,4 +10,6 @@ public class RecibidoYAceptadoParcialRemito extends Estado {
     public RecibidoYAceptadoParcialRemito() {
         super("RecibidoYAceptadoParcial", "Remito recibido con observaciones", "Remito");
     }
+    @Override
+    public boolean esRecibidoYAceptadoParcial() { return true; }
 }
