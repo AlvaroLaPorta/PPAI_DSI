@@ -1,9 +1,7 @@
 package ar.edu.utn.frc.dsi.bolsines.domain;
 
-import ar.edu.utn.frc.dsi.bolsines.domain.state.Estado;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
-import java.util.List;
 
 @Entity
 public class DetalleRemito {
@@ -21,32 +19,12 @@ public class DetalleRemito {
         this.documentacion = documentacion;
     }
 
-    public void aceptar(LocalDateTime fechaActual, Empleado empleado, List<Estado> estadosCatalogo, OpcionRecepcion opcionRecepcion) {
+    public void procesarRecepcion(LocalDateTime fechaActual, Empleado nombre, OpcionRecepcion opcionRecepcion) {
         switch (opcionRecepcion) {
-            case ACEPTAR -> {
-                Estado est = estadosCatalogo.stream()
-                        .filter(e -> e.esAmbitoDocumentacion() && e.esRecibidoYAceptada())
-                        .findFirst().orElseThrow();
-                documentacion.aceptar(fechaActual, empleado, est);
-            }
-            case DENEGAR -> {
-                Estado est = estadosCatalogo.stream()
-                        .filter(e -> e.esAmbitoDocumentacion() && e.esNoRecibida())
-                        .findFirst().orElseThrow();
-                documentacion.denegar(fechaActual, empleado, est);
-            }
-            case RECHAZAR -> {
-                Estado est = estadosCatalogo.stream()
-                        .filter(e -> e.esAmbitoDocumentacion() && e.esRecibidaYRechazada())
-                        .findFirst().orElseThrow();
-                documentacion.rechazar(fechaActual, empleado, est);
-            }
-            case REDIRIGIR -> {
-                Estado est = estadosCatalogo.stream()
-                        .filter(e -> e.esAmbitoDocumentacion() && e.esParaRedirigir())
-                        .findFirst().orElseThrow();
-                documentacion.redirigir(fechaActual, empleado, est);
-            }
+            case ACEPTAR   -> this.documentacion.aceptar(fechaActual, nombre);
+            case DENEGAR   -> this.documentacion.denegar(fechaActual, nombre);
+            case RECHAZAR  -> this.documentacion.rechazar(fechaActual, nombre);
+            case REDIRIGIR -> this.documentacion.redirigir(fechaActual, nombre);
             default -> throw new IllegalArgumentException("Opción de recepción desconocida: " + opcionRecepcion);
         }
     }

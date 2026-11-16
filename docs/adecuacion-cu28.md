@@ -4,7 +4,7 @@ Referencias aportadas: ERS v1.2 (reglas de negocio, página 6; CU28, páginas 11
 
 ## Alcance y decisiones
 
-El grupo 8 implementa CU28 y aplica State a Documentación. Se conserva la jerarquía común `Estado` del diagrama, con estados concretos para Bolsín, Remito y Documentación. Las entidades delegan las operaciones al estado actual; el gestor coordina la transacción y valida el contexto de la recepción.
+El grupo 8 implementa CU28 y aplica State a Documentación. Se conserva la jerarquía común `Estado` del diagrama, con estados concretos para Bolsín, Remito y Documentación. La integración de V3 (`upstream/main`, commit `da63ebc`) agrega una referencia directa al estado activo y una referencia inversa transitoria desde el estado al contexto. Las entidades delegan las operaciones al estado actual; los estados concretos crean los estados destino y los cambios de estado; el gestor coordina la transacción y valida el contexto de la recepción.
 
 La elección se realiza para el bolsín y se identifican los documentos afectados. Los demás documentos se aceptan. Una recepción registra una de las situaciones enumeradas en el CU28; combinar varias situaciones diferentes en una misma recepción queda fuera de esta interfaz.
 
@@ -25,7 +25,7 @@ Los cambios de estado de Bolsín y Documentación incorporan una referencia `Emp
 
 Las escrituras del bolsín, documentos, remitos y notificación pendiente se ejecutan en la misma transacción. Una transición inválida revierte la recepción completa. `@Version` protege las entidades frente a actualizaciones sobre una versión anterior; SQLite tiene limitaciones para escrituras simultáneas. No se implementa un sistema de autenticación: se usa la única sesión activa precargada para la defensa.
 
-`ddl-auto=update` conserva el historial al reiniciar. Para bases de la versión anterior, el arranque inicializa las versiones nulas. Esto es una adaptación para el proyecto académico, no un sistema de migraciones para producción.
+`ddl-auto=update` conserva el historial al reiniciar. Para bases anteriores, Hibernate agrega las columnas faltantes sin borrar tablas; el arranque inicializa las versiones nulas y reconstruye la referencia directa al estado desde el cambio de estado actual. La columna de estado admite nulos durante esa adaptación; las operaciones de dominio exigen un estado activo. Las referencias inversas se restablecen al cargar y antes de delegar cada operación, para soportar las filas de estados compartidas por la versión anterior sin confundir documentos ni bolsines. Esto es una adaptación para el proyecto académico, no un sistema de migraciones para producción.
 
 ## Integración del CU29
 
@@ -40,7 +40,9 @@ Las escrituras del bolsín, documentos, remitos y notificación pendiente se eje
 - Quitar del gestor el estado mutable del flujo: la selección pertenece a cada pestaña y se envía en la solicitud. Cancelar descarta la selección sin escribir en el servidor.
 - Las operaciones de recepción de Bolsín y Remito reciben `Map<Long, OpcionRecepcion>` para resolver las decisiones individuales.
 - Agregar `esRecibidoYAceptadoParcial(): boolean` a Estado y su redefinición en el estado parcial del remito.
-- Documentar que los estados destino se obtienen del catálogo persistido y que las entidades crean sus cambios de estado. No se implementan las fábricas `crearEstado` del diagrama original.
+- Incorporar el atributo `estado: Estado` a Bolsín y Documentación, conservando los historiales. Los contextos exponen `setEstado` y `changeState` como en V3.
+- Incorporar las referencias inversas transitorias de Estado a sus contextos, sus constructores y la revinculación al cargar desde JPA.
+- Los estados concretos crean las instancias destino (`crearEstado`, `crearEstadoRem`, `crearEstadoDoc`) y los cambios de estado con el empleado responsable. Las asociaciones persisten esas instancias por cascada; ya no se consulta un catálogo global para transicionar.
 - Agregar `GestorNotificarRecepcion`, `NotificacionRecepcion` y su repositorio como integración pendiente de transporte del CU29.
 
 ```mermaid
@@ -54,7 +56,12 @@ classDiagram
     CambioEstadoDocumentacion --> Estado
     CambioEstadoBolsin --> Empleado : responsable
     CambioEstadoDocumentacion --> Empleado : responsable
-    Remito --> Estado
+    Remito --> Estado : estado activo
+    Bolsin --> Estado : estado activo
+    Documentacion --> Estado : estado activo
+    Estado ..> Bolsin : contexto transitorio
+    Estado ..> Remito : contexto transitorio
+    Estado ..> Documentacion : contexto transitorio
     Estado <|-- EnBolsinEnviadoDoc
     Estado <|-- RecibidaYAceptada
     Estado <|-- NoRecibida
@@ -88,17 +95,21 @@ sequenceDiagram
     UI->>G: tomarConfirmacion(solicitud)
     Note over G,N: Una transacción para recepción y notificación pendiente
     G->>G: Validar empleado, CM, estado, opción y pertenencia de documentos
-    G->>B: recibirYAceptarBolsin(fecha, empleado, catálogo, opciones)
+    G->>B: recibirYAceptarBolsin(fecha, empleado, opciones)
     B->>BE: recibirYAceptarBolsin(...)
-    BE->>B: cambiarEstadoBolsin(fecha, destino, empleado)
-    BE->>R: recibirYAceptar(..., opciones)
+    BE->>B: cerrarCambioEstadoActual(fecha)
+    BE->>BE: crearEstado y crearCambioEstadoBolsin con empleado
+    BE->>R: recibir(fecha, empleado, opciones)
     loop Cada documento
-        R->>D: aceptar(fecha, empleado, catálogo, opción individual)
+        R->>D: procesarRecepcion(fecha, empleado, opción individual)
         D->>DOC: aceptar / denegar / rechazar / redirigir
         DOC->>E: Delegar operación
-        E->>DOC: cambiarEstadoDoc(fecha, destino, empleado)
+        E->>DOC: cerrarCambioEstadoActual(fecha)
+    E->>E: Crear estado destino y cambio de estado con empleado
+    E->>DOC: setEstado(destino) y agregarCambioEstado(cambio)
     end
     R->>R: Asignar estado aceptado o parcial según faltantes
+    BE->>B: setEstado(destino) y agregarCambioEstado(cambio)
     G->>N: registrarNotificacion(bolsín, fecha)
     N-->>G: Notificación pendiente persistida
     G-->>UI: Resultado y responsables
@@ -106,6 +117,6 @@ sequenceDiagram
 
 ## Validación y defensa
 
-`mvn test` ejecuta pruebas con SQLite temporal: recepción completa; faltantes; rechazo; redirección; validación de CMC y CM destino; documentos ajenos; confirmación repetida; selecciones independientes; cancelación sin escritura; rollback de la cascada; búsquedas sin resultados y conservación tras reiniciar.
+`mvn test` ejecuta pruebas con SQLite temporal: recepción completa; faltantes; rechazo; redirección; validación de CMC y CM destino; documentos ajenos; confirmación repetida; selecciones independientes; cancelación sin escritura; rollback de la cascada; búsquedas sin resultados conservación tras reiniciar y migración desde el esquema anterior con estados compartidos.
 
 Para demostrar el patrón: seguir `Documentacion.aceptar` hasta `EnBolsinEnviadoDoc.aceptar` y la creación del historial. En una recepción con incidencias, comparar el documento seleccionado con el restante y mostrar el responsable persistido.

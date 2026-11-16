@@ -77,11 +77,13 @@ class RecepcionBolsinTest {
             assertEquals(2, b.getCambioEstadoBolsin().size());
             var actual = b.getCambioEstadoBolsin().stream().filter(CambioEstadoBolsin::sosActual).findFirst().orElseThrow();
             assertNotNull(actual.getEmpleado());
+            assertEquals(actual.getEstado().getId(), b.getEstadoActual().getId());
             for (var det : b.getRemitos().get(0).getDetalleRemito()) {
                 var d = det.getDocumentacion();
                 assertEquals("RecibidaYAceptada", d.getEstadoActual().getNombre());
                 var ce = d.getCambioEstadoDocumentacion().stream().filter(CambioEstadoDocumentacion::sosActual).findFirst().orElseThrow();
                 assertEquals(actual.getEmpleado().getId(), ce.getEmpleado().getId());
+                assertEquals(ce.getEstado().getId(), d.getEstadoActual().getId());
                 assertEquals(1, d.getCambioEstadoDocumentacion().stream().filter(CambioEstadoDocumentacion::sosActual).count());
             }
         });
@@ -168,9 +170,7 @@ class RecepcionBolsinTest {
         Long id = bolsin(1042); var docs = documentos(id);
         transaccion.executeWithoutResult(t -> {
             var em = app.getBean(EntityManager.class);
-            var aceptada = app.getBean(EstadoRepository.class).findAll().stream()
-                    .filter(e -> e.esAmbitoDocumentacion() && e.esRecibidoYAceptada()).findFirst().orElseThrow();
-            em.find(Documentacion.class, docs.get(1)).cambiarEstadoDoc(java.time.LocalDateTime.now(), aceptada, null);
+            em.find(Documentacion.class, docs.get(1)).aceptar(java.time.LocalDateTime.now(), null);
         });
         assertThrows(UnsupportedOperationException.class, () -> gestor.tomarConfirmacion(solicitud(id, OpcionRecepcion.ACEPTAR)));
         sigueEnviado(id);
@@ -197,4 +197,39 @@ class RecepcionBolsinTest {
         });
         assertEquals(1, app.getBean(NotificacionRecepcionRepository.class).count());
     }
+    @Test void migraBaseAnteriorConEstadosCompartidosSinBorrarHistorial() throws Exception {
+        Long pendiente = bolsin(1042), recibido = bolsin(1043), otro = bolsin(1044);
+        var docs = documentos(pendiente);
+        gestor.tomarConfirmacion(solicitud(recibido, OpcionRecepcion.ACEPTAR));
+        app.close();
+        try (var conexion = java.sql.DriverManager.getConnection("jdbc:sqlite:" + carpeta.resolve("test.db"));
+             var sql = conexion.createStatement()) {
+            // El catálogo anterior compartía un único estado entre múltiples contextos.
+            for (String[] datos : List.of(
+                    new String[]{"cambio_estado_bolsin", "BOLSIN_ENVIADO"},
+                    new String[]{"cambio_estado_documentacion", "DOC_EN_BOLSIN_ENVIADO"},
+                    new String[]{"remito", "REMITO_EN_BOLSIN_ENVIADO"})) {
+                sql.executeUpdate("UPDATE " + datos[0] + " SET estado_id = (SELECT MIN(id) FROM estado WHERE tipo_estado = '"
+                        + datos[1] + "') WHERE estado_id IN (SELECT id FROM estado WHERE tipo_estado = '" + datos[1] + "')");
+            }
+            // Simula el esquema previo, sin referencia directa al estado ni control de versión.
+            for (String tabla : List.of("bolsin", "documentacion")) {
+                sql.executeUpdate("ALTER TABLE " + tabla + " DROP COLUMN estado_id");
+                sql.executeUpdate("ALTER TABLE " + tabla + " DROP COLUMN version");
+            }
+        }
+        app = arrancar();
+        gestor = app.getBean(GestorRecpBolsin.class);
+        bolsines = app.getBean(BolsinRepository.class);
+        transaccion = new TransactionTemplate(app.getBean(PlatformTransactionManager.class));
+        assertEquals("RecibidoYAceptado", estadoRemito(recibido));
+        assertEquals(1, app.getBean(NotificacionRecepcionRepository.class).count());
+        gestor.tomarConfirmacion(solicitud(pendiente, OpcionRecepcion.DENEGAR, docs.get(0)));
+        assertEquals("NoRecibida", estadoDoc(docs.get(0)));
+        assertEquals("RecibidaYAceptada", estadoDoc(docs.get(1)));
+        assertEquals("RecibidoYAceptadoParcial", estadoRemito(pendiente));
+        sigueEnviado(otro);
+        assertEquals(2, app.getBean(NotificacionRecepcionRepository.class).count());
+    }
+
 }

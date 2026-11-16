@@ -12,7 +12,7 @@ public class CambioEstadoDocumentacion {
     private LocalDateTime fechaHoraInicio;
     private LocalDateTime fechaHoraFin;
 
-    @ManyToOne(optional = false)
+    @ManyToOne(cascade = {CascadeType.PERSIST, CascadeType.MERGE}, optional = false)
     private Estado estado;
 
     @ManyToOne

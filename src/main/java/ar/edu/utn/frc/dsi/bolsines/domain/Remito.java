@@ -1,6 +1,7 @@
 package ar.edu.utn.frc.dsi.bolsines.domain;
 
 import ar.edu.utn.frc.dsi.bolsines.domain.state.Estado;
+import ar.edu.utn.frc.dsi.bolsines.domain.state.remito.EnBolsinEnviadoRemito;
 import jakarta.persistence.*;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -15,7 +16,8 @@ public class Remito {
     private LocalDate fecha;
     private Integer numero;
 
-    @ManyToOne(optional = false)
+    // Referencia directa al estado activo (field state: State)
+    @ManyToOne(cascade = {CascadeType.PERSIST, CascadeType.MERGE}, optional = false)
     private Estado estado;
 
     @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
@@ -23,20 +25,41 @@ public class Remito {
     private List<DetalleRemito> detalleRemito = new ArrayList<>();
 
     protected Remito() {}
-    public Remito(LocalDate fecha, Integer numero, Estado estadoInicial) {
+
+    // Constructor: inicializa el estado pasándose a sí mismo (this)
+    public Remito(LocalDate fecha, Integer numero) {
         this.fecha = fecha;
         this.numero = numero;
-        this.estado = estadoInicial;
+        this.estado = new EnBolsinEnviadoRemito(this);
     }
 
-    public void recibirYAceptar(Empleado empleado, List<Estado> estadosCatalogo,
-                                LocalDateTime fechaActual, java.util.Map<Long, OpcionRecepcion> opciones) {
-        this.estado.recibirYAceptar(this, empleado, estadosCatalogo, fechaActual, opciones);
+    @PostLoad
+    private void reconstruirReferenciaInversa() {
+        if (this.estado != null) {
+            this.estado.vincularRemito(this);
+        }
+    }
+
+    // Equivalente a changeState(state: State) / setEstado(estado: Estado)
+    public void setEstado(Estado nuevoEstado) {
+        this.estado = nuevoEstado;
+        if (this.estado != null) {
+            this.estado.vincularRemito(this);
+        }
+    }
+
+    public void changeState(Estado nuevoEstado) {
+        setEstado(nuevoEstado);
+    }
+
+    // Delegación pura al estado activo
+    public void recibir(LocalDateTime fechaActual, Empleado nombre, java.util.Map<Long, OpcionRecepcion> opciones) {
+        this.estado.vincularRemito(this);
+        this.estado.recibirYAceptar(fechaActual, nombre, opciones);
     }
 
     public Integer getNumero() { return numero; }
     public LocalDate getFecha() { return fecha; }
     public Estado getEstado() { return estado; }
-    public void setEstado(Estado estado) { this.estado = estado; }
     public List<DetalleRemito> getDetalleRemito() { return detalleRemito; }
 }

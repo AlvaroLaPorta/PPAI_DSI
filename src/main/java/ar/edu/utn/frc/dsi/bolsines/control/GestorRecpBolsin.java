@@ -1,7 +1,6 @@
 package ar.edu.utn.frc.dsi.bolsines.control;
 
 import ar.edu.utn.frc.dsi.bolsines.domain.*;
-import ar.edu.utn.frc.dsi.bolsines.domain.state.Estado;
 import ar.edu.utn.frc.dsi.bolsines.repository.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -14,16 +13,14 @@ public class GestorRecpBolsin {
     private final SesionRepository sesiones;
     private final EmpleadoRepository empleados;
     private final BolsinRepository bolsines;
-    private final EstadoRepository estados;
     private final GestorNotificarRecepcion notificaciones;
 
     public GestorRecpBolsin(SesionRepository sesiones, EmpleadoRepository empleados,
-                           BolsinRepository bolsines, EstadoRepository estados,
+                           BolsinRepository bolsines,
                            GestorNotificarRecepcion notificaciones) {
         this.sesiones = sesiones;
         this.empleados = empleados;
         this.bolsines = bolsines;
-        this.estados = estados;
         this.notificaciones = notificaciones;
     }
 
@@ -129,8 +126,7 @@ public class GestorRecpBolsin {
         Bolsin bolsin = buscarBolsin(solicitud.bolsinId(), empleado);
         Map<Long, OpcionRecepcion> opciones = validarSolicitud(bolsin, empleado, solicitud);
         LocalDateTime fecha = LocalDateTime.now();
-        List<Estado> catalogo = estados.findAll();
-        bolsin.recibirYAceptarBolsin(fecha, empleado, catalogo, opciones);
+        bolsin.recibirYAceptarBolsin(fecha, empleado, opciones);
         bolsines.saveAndFlush(bolsin);
         NotificacionRecepcion notificacion = notificaciones.registrarNotificacion(bolsin, fecha);
         return construirResumen(bolsin, fecha, notificacion);
